@@ -97,8 +97,8 @@ class FillingMatrix_dgf_free(object):
         self.grids = grids
         self.trias = trias
         self.k = wavenumber
-        tempIncPar = IncidentPar()
-        self.planewave = IncidentFunc(self.k, tempIncPar.k_direct, tempIncPar.e_direct).planewave
+        self.tempIncPar = IncidentPar()
+        self.planewave = IncidentFunc(self.k, self.tempIncPar.k_direct, self.tempIncPar.e_direct).planewave
         self.aita = 377
         self.common_Cal()
         pass
@@ -140,8 +140,10 @@ class FillingMatrix_dgf_free(object):
             raise
     
     def changeIncDir(self,incPar):
-        tempIncPar = incPar
-        self.planewave = IncidentFunc(self.k, tempIncPar.k_direct, tempIncPar.e_direct).planewave        
+        self.tempIncPar = incPar
+        self.planewave = IncidentFunc(self.k, self.tempIncPar.k_direct, self.tempIncPar.e_direct).planewave 
+    def getk_direct(self):
+        return self.tempIncPar.k_direct
 
     def coef_equations(self):
         temp = np.array([self.k*self.aita, -self.aita/self.k])*1.j/4./scipy.pi
@@ -759,10 +761,11 @@ class Solver(object): # https://docs.scipy.org/doc/scipy-0.16.0/reference/sparse
     
 # In[]   
 class PGreenFunc(object):
-    def __init__(self,k,\
+    def __init__(self,k, k0,\
                  h=1,d=1,phi=0,\
                  nmax=1,mmax=1):
         self.k = k
+        self.k0 = k0
         self.h = h
         self.d = d
         self.phi = phi
@@ -786,7 +789,7 @@ class PGreenFunc(object):
         r_rp_nm = r-rp-rho_nm
         R_nm = np.sqrt(np.sum(r_rp_nm*r_rp_nm,axis=-1))
         
-        k0 = np.array([0,0,1]).reshape([1,-1])
+        k0 = self.k0.reshape([1,-1])
         a = np.exp(-1.j*self.k*R_nm)/R_nm
               
         b = np.exp( -1.j*\
@@ -888,7 +891,7 @@ class FillingProcess_DGF_Free(object):
     def fillingDGF(self, impMatrix, filling):
         try:
             cellPar = CellPar()
-            dgf = PGreenFunc(filling.k, cellPar.h, cellPar.d, cellPar.phi, cellPar.nmax, cellPar.mmax)
+            dgf = PGreenFunc(filling.k, filling.getk_direct(), cellPar.h, cellPar.d, cellPar.phi, cellPar.nmax, cellPar.mmax)
             class temp0(object):
                 def iter(self,matrix):
                     r1Group, r2Group = matrix[0]

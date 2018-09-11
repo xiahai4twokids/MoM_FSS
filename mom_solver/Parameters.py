@@ -30,8 +30,8 @@ class CellPar(object):
         self.d = 2
         self.h = 1
         self.phi = np.pi*0
-        self.nmax = 10
-        self.mmax = 10
+        self.nmax = 2
+        self.mmax = 2
         self.isPeriod = True
         
 class RCSPar(object):
