@@ -92,6 +92,7 @@ class PGF_Possion(object):
         
         # 计算
         z = r[:,:,:,:,-1]
+        z = np.absolute(z)
         #print z
         
         temp1 = np.exp(-_gamma_z*z)/_gamma_z
@@ -155,8 +156,8 @@ class PGF_EWALD(object):
         
         E = np.sqrt(np.pi/_Omega)
         
-        temp_pos_1 = np.exp(_gamma_z*z)*spf.erfc(_gamma_z/2./E+z*E)
-        temp_neg_1 = np.exp(-_gamma_z*z)*spf.erfc(_gamma_z/2./E-z*E)
+        temp_pos_1 = np.exp(_gamma_z*z)/_gamma_z*spf.erfc(_gamma_z/2./E+z*E)
+        temp_neg_1 = np.exp(-_gamma_z*z)/_gamma_z*spf.erfc(_gamma_z/2./E-z*E)
         
         temp_1 = temp_pos_1+temp_neg_1
         temp2_1 = np.exp(\
@@ -180,7 +181,7 @@ class PGF_EWALD(object):
          
         pass
 # In[]       
-zs = np.linspace(0.0001,0.05,51)
+zs = np.linspace(0.0001,0.1,51)
 r = np.array([[0,0,zz] for zz in zs]) 
 thetas = np.linspace(0,np.pi*0.5,1)
 k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
