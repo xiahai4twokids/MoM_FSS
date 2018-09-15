@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-# In[] Possion Transform
+# In[] Poisson Transform
 import scipy as np
 import scipy.special as spf
 #import pandas as pds
@@ -33,17 +33,17 @@ class PGF_Direct(object):
         rho_mn = m.reshape([1,1,-1,1,1])*a1 + n.reshape([1,1,1,-1,1]) *a2
         R_mn = r-rho_mn
         
-        temp1 = np.exp(-1j*k0*np.sum(k_dir*rho_mn,axis=-1))
+        ejkrho = np.exp(-1j*k0*np.sum(k_dir*rho_mn,axis=-1))
         R = np.sqrt(np.sum(R_mn*R_mn,axis=-1))
         
-        temp2 = np.exp(-1j*k0*R)/R/np.pi/4
+        G0 = np.exp(-1j*k0*R)/R/np.pi/4
         
-        return np.sum(np.sum(temp1*temp2,axis=-1),axis=-1)
+        return np.sum(np.sum(ejkrho*G0,axis=-1),axis=-1)
 # In[]
 #import scipy as np
 #import pandas as pds
 
-class PGF_Possion(object):
+class PGF_Poisson(object):
     def __init__(self,k0, a1, a2, nmax=50, mmax=50):
         self.a1 = a1
         self.a2 = a2
@@ -71,6 +71,7 @@ class PGF_Possion(object):
         _hat_K_2 = np.cross(a1,np.cross(a2,a1))/_Omega**2*np.pi*2.
         _hat_K_3_unit = np.cross(_hat_K_1, _hat_K_2)
         _hat_K_3_unit = _hat_K_3_unit/(np.sqrt(np.sum(_hat_K_3_unit*_hat_K_3_unit)))
+
         # 计算k_rho
         
         _hat_k_inc = k_dir*k0
@@ -89,17 +90,23 @@ class PGF_Possion(object):
         # 计算\gamma_z
         K_mn_2 = np.sum(_hat_K_mn*_hat_K_mn,axis=-1)
         _gamma_z = np.sqrt(K_mn_2-k0**2)
-        
+#        print _gamma_z.shape
+#        print _gamma_z
+#        
         # 计算
         z = r[:,:,:,:,-1]
         z = np.absolute(z)
         #print z
         
-        temp1 = np.exp(-_gamma_z*z)/_gamma_z
-        temp2 = np.exp(\
+        G0_spec = np.exp(-_gamma_z*z)/_gamma_z/2
+        ejkR = np.exp(\
                 1.j*np.sum(_hat_K_mn*r,axis=-1)\
                 )
-        temp = temp1*temp2
+        temp = G0_spec*ejkR
+#        print temp.shape
+#        print temp
+#        print G0_spec.shape
+#        print G0_spec
         result = np.sum(np.sum(temp,axis=-1),axis=-1)/_Omega
         return result
 
@@ -183,10 +190,10 @@ class PGF_EWALD(object):
         pass
 # In[]       
 #import scipy as np
-zs = np.linspace(1,2,11)
+zs = np.linspace(10,12,3)
 r = np.array([[0,0,zz] for zz in zs]) 
-thetas = np.linspace(0,np.pi*0.1,2) 
-#thetas = np.array([0.314159])
+#thetas = np.linspace(0,np.pi*0.1,2) 
+thetas = np.array([0.314159])
 print "thetas: ", thetas
 k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
 k_dir = k_dir.transpose()
@@ -210,8 +217,8 @@ print "grating lobe condition: ", checker
 
 # In[]
 
-result_direct = PGF_Direct(k0,a1,a2,500,500).pgf(k_dir,r)     
-result_poisson = PGF_Possion(k0,a1,a2,20,20).pgf(k_dir,r)
+result_direct = PGF_Direct(k0,a1,a2,200,200).pgf(k_dir,r)     
+result_poisson = PGF_Poisson(k0,a1,a2,2,2).pgf(k_dir,r)
 #result_ewald = PGF_EWALD(k0,a1,a2,1,1).pgf(k_dir,r)
 #print np.absolute(result)
 import matplotlib.pylab as plt
@@ -251,7 +258,7 @@ plt.legend()
 plt.show()
 
 #
-#
+
 plt.figure()
 map(Method((result_direct-result_poisson)/result_direct,'diff_pois',"s").absolute,xrange(k_dir.shape[0]))
 #map(Method((result_direct-result_ewald)/result_direct,'diff_ewald',"d").absolute,xrange(k_dir.shape[0]))
@@ -259,4 +266,4 @@ plt.xlabel("zs")
 plt.ylabel("log10(abs) ")
 plt.legend()
 plt.show()        
-#        
+        
