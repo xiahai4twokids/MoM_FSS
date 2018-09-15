@@ -7,12 +7,12 @@ import scipy.special as spf
 #import pandas as pds
 
 class PGF_Direct(object):
-    def __init__(self,k0, a1, a2):
+    def __init__(self,k0, a1, a2, nmax=200, mmax=200):
         self.a1 = a1
         self.a2 = a2
         
-        self.mmax = 200
-        self.nmax = 200
+        self.mmax = mmax
+        self.nmax = nmax
         self.k0 = k0
     def pgf(self,k_dir_ ,r_):
         a1 = self.a1
@@ -44,12 +44,12 @@ class PGF_Direct(object):
 #import pandas as pds
 
 class PGF_Possion(object):
-    def __init__(self,k0, a1, a2):
+    def __init__(self,k0, a1, a2, nmax=50, mmax=50):
         self.a1 = a1
         self.a2 = a2
         
-        self.mmax = 50
-        self.nmax = 50
+        self.mmax = mmax
+        self.nmax = nmax
         self.k0 = k0
     def pgf(self,k_dir_ ,r_):
         a1 = self.a1
@@ -106,12 +106,12 @@ class PGF_Possion(object):
 # In[] 
 #import scipy as np
 class PGF_EWALD(object):
-    def __init__(self,k0, a1, a2):
+    def __init__(self,k0, a1, a2, nmax=50, mmax=50):
         self.a1 = a1
         self.a2 = a2
         
-        self.mmax = 50
-        self.nmax = 50
+        self.mmax = mmax
+        self.nmax = nmax
         self.k0 = k0
         pass
     def pgf(self,k_dir_ ,r_):
@@ -152,10 +152,11 @@ class PGF_EWALD(object):
         # 计算\gamma_z
         K_mn_2 = np.sum(_hat_K_mn*_hat_K_mn,axis=-1)
         _gamma_z = np.sqrt(K_mn_2-k0**2)
+        
         z = r[:,:,:,:,-1]  
         
         E = np.sqrt(np.pi/_Omega)
-        
+#        print _gamma_z
         temp_pos_1 = np.exp(_gamma_z*z)/_gamma_z*spf.erfc(_gamma_z/2./E+z*E)
         temp_neg_1 = np.exp(-_gamma_z*z)/_gamma_z*spf.erfc(_gamma_z/2./E-z*E)
         
@@ -181,19 +182,35 @@ class PGF_EWALD(object):
          
         pass
 # In[]       
-zs = np.linspace(0.0001,0.1,51)
+#import scipy as np
+zs = np.linspace(0.001,0.1,11)
 r = np.array([[0,0,zz] for zz in zs]) 
 thetas = np.linspace(0,np.pi*0.5,1)
 k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
 k_dir = k_dir.transpose()
-#k_dir =np.array([[0,1,1],[0,0,1]])
-k0 = 2 
+
+wavelength = 10
+k0 = np.pi*2/wavelength
+
+
 a1 = np.array([1,0,0])
 a2 = np.array([0,1,0])
+class gratinglobes(object): 
+    def check(self):
+        dx = np.sqrt(np.sum(a1*a1,axis=-1))
+        dy = np.sqrt(np.sum(a2*a2,axis=-1))
+        threshold_d = wavelength/(1+np.sin(thetas))
+        temp = np.array([dx <threshold_d, dy<threshold_d])
+        return np.sum(temp,axis=0)==temp.shape[0]
         
-result_poisson = PGF_Possion(k0,a1,a2).pgf(k_dir,r)
-result_direct = PGF_Direct(k0,a1,a2).pgf(k_dir,r)
-result_ewald = PGF_EWALD(k0,a1,a2).pgf(k_dir,r)
+checker =  gratinglobes().check()
+print checker
+
+# In[]
+
+result_direct = PGF_Direct(k0,a1,a2,200,200).pgf(k_dir,r)     
+result_poisson = PGF_Possion(k0,a1,a2,50,50).pgf(k_dir,r)
+result_ewald = PGF_EWALD(k0,a1,a2,50,50).pgf(k_dir,r)
 #print np.absolute(result)
 import matplotlib.pylab as plt
 plt.figure()
@@ -212,7 +229,9 @@ class Method(object):
                  np.log10(np.absolute(self.result)[it]),\
                  self.line,\
                  label='abs %d %s'%(it,self.marker))
-map(Method(result_poisson,'pois',"-o").angle,xrange(k_dir.shape[0]))
+        
+        
+map(Method(result_poisson,'pois',"s").angle,xrange(k_dir.shape[0]))
 map(Method(result_direct, 'dir',"-").angle,xrange(k_dir.shape[0]))
 map(Method(result_ewald, 'ewald',"+").angle,xrange(k_dir.shape[0]))
 plt.ylabel("angle (degree)")
@@ -221,7 +240,7 @@ plt.legend()
 plt.show()
 
 plt.figure()
-map(Method(result_poisson,'pois',"-o").absolute,xrange(k_dir.shape[0]))
+map(Method(result_poisson,'pois',"s").absolute,xrange(k_dir.shape[0]))
 map(Method(result_direct,'dir',"-").absolute,xrange(k_dir.shape[0]))
 map(Method(result_ewald,'ewald',"+").absolute,xrange(k_dir.shape[0]))
 plt.xlabel("zs")
@@ -229,12 +248,13 @@ plt.ylabel("log10(abs) ")
 plt.legend()
 plt.show()
 
-
-
+#
+#
 plt.figure()
-map(Method((result_direct-result_ewald)/result_direct,'diff',"d").absolute,xrange(k_dir.shape[0]))
+map(Method((result_direct-result_poisson)/result_direct,'diff_pois',"s").absolute,xrange(k_dir.shape[0]))
+map(Method((result_direct-result_ewald)/result_direct,'diff_ewald',"d").absolute,xrange(k_dir.shape[0]))
 plt.xlabel("zs")
 plt.ylabel("log10(abs) ")
 plt.legend()
 plt.show()        
-        
+#        
