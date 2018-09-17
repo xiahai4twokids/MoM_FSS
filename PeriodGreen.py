@@ -35,10 +35,15 @@ class PGF_Direct(object):
         
         ejkrho = np.exp(-1j*k0*np.sum(k_dir*rho_mn,axis=-1))
         R = np.sqrt(np.sum(R_mn*R_mn,axis=-1))
+#        print R
+        
         
         G0 = np.exp(-1j*k0*R)/R/np.pi/4
         
-        return np.sum(np.sum(ejkrho*G0,axis=-1),axis=-1)
+        result = np.sum(np.sum(ejkrho*G0,axis=-1),axis=-1)
+#        print result
+        
+        return result
 # In[]
 #import scipy as np
 #import pandas as pds
@@ -73,16 +78,12 @@ class PGF_Poisson(object):
         _hat_K_3_unit = _hat_K_3_unit/(np.sqrt(np.sum(_hat_K_3_unit*_hat_K_3_unit)))
 
         # 计算k_rho
-        
         _hat_k_inc = k_dir*k0
-        _hat_k_inc = _hat_k_inc/np.sqrt(np.sum(_hat_k_inc*_hat_k_inc,axis=-1).reshape([-1,1,1,1,1]))
         k_rho = _hat_k_inc - np.sum(_hat_k_inc*_hat_K_3_unit,axis=-1).reshape([-1,1,1,1,1])*_hat_K_3_unit
         # 计算\hat K_mn
         
         m = np.linspace(-mmax,mmax,2*mmax+1)
         n = np.linspace(-nmax,nmax,2*nmax+1)
-        #print m
-        #print n
         _hat_K_mn = m.reshape([1,1,-1,1,1])*_hat_K_1.reshape([1,1,1,1,-1])\
             +n.reshape([1,1,1,-1,1])*_hat_K_2.reshape([1,1,1,1,-1])\
             -k_rho.reshape([k_rho.shape[0],1,1,1,-1])
@@ -90,23 +91,17 @@ class PGF_Poisson(object):
         # 计算\gamma_z
         K_mn_2 = np.sum(_hat_K_mn*_hat_K_mn,axis=-1)
         _gamma_z = np.sqrt(K_mn_2-k0**2)
-#        print _gamma_z.shape
-#        print _gamma_z
-#        
+    
         # 计算
         z = r[:,:,:,:,-1]
         z = np.absolute(z)
-        #print z
         
         G0_spec = np.exp(-_gamma_z*z)/_gamma_z/2
         ejkR = np.exp(\
                 1.j*np.sum(_hat_K_mn*r,axis=-1)\
                 )
         temp = G0_spec*ejkR
-#        print temp.shape
-#        print temp
-#        print G0_spec.shape
-#        print G0_spec
+
         result = np.sum(np.sum(temp,axis=-1),axis=-1)/_Omega
         return result
 
@@ -150,8 +145,7 @@ class PGF_EWALD(object):
         
         m = np.linspace(-mmax,mmax,2*mmax+1)
         n = np.linspace(-nmax,nmax,2*nmax+1)
-        #print m
-        #print n
+
         _hat_K_mn = m.reshape([1,1,-1,1,1])*_hat_K_1.reshape([1,1,1,1,-1])\
             +n.reshape([1,1,1,-1,1])*_hat_K_2.reshape([1,1,1,1,-1])\
             -k_rho.reshape([k_rho.shape[0],1,1,1,-1])
@@ -190,7 +184,7 @@ class PGF_EWALD(object):
         pass
 # In[]       
 #import scipy as np
-zs = np.linspace(10,12,3)
+zs = np.linspace(0.8,1,11)
 r = np.array([[0,0,zz] for zz in zs]) 
 #thetas = np.linspace(0,np.pi*0.1,2) 
 thetas = np.array([0.314159])
@@ -200,7 +194,6 @@ k_dir = k_dir.transpose()
 
 wavelength = 10
 k0 = np.pi*2/wavelength
-
 
 a1 = np.array([1,0,0])
 a2 = np.array([0,1,0])
@@ -217,7 +210,7 @@ print "grating lobe condition: ", checker
 
 # In[]
 
-result_direct = PGF_Direct(k0,a1,a2,200,200).pgf(k_dir,r)     
+result_direct = PGF_Direct(k0,a1,a2,1000,1000).pgf(k_dir,r)     
 result_poisson = PGF_Poisson(k0,a1,a2,2,2).pgf(k_dir,r)
 #result_ewald = PGF_EWALD(k0,a1,a2,1,1).pgf(k_dir,r)
 #print np.absolute(result)
@@ -235,7 +228,7 @@ class Method(object):
                  label='angle %d %s'%(it,self.marker))
     def absolute(self,it):
         plt.plot(zs,\
-                 np.log10(np.absolute(self.result)[it]),\
+                 np.absolute(self.result)[it],\
                  self.line,\
                  label='abs %d %s'%(it,self.marker))
         
@@ -267,3 +260,6 @@ plt.ylabel("log10(abs) ")
 plt.legend()
 plt.show()        
         
+#print result_direct
+#print result_poisson
+#print np.absolute(result_poisson/result_direct)
