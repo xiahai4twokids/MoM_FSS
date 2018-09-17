@@ -178,85 +178,122 @@ class PGF_EWALD(object):
         
         result = _Psi_1/4/_Omega +_Psi_2/8/np.pi
         return result
-# In[]       
-#import scipy as np
-zs = np.linspace(100,101,11)
-r = np.array([[0,0,zz] for zz in zs]) 
-thetas = np.linspace(0,np.pi*0.1,5) 
-#thetas = np.array([0.1,])
-print "thetas: ", thetas
-k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
-k_dir = k_dir.transpose()
-
-wavelength = 10
-k0 = np.pi*2/wavelength
-
-a1 = np.array([1,0,0])
-a2 = np.array([0,1,0])
-class gratinglobes(object): 
-    def check(self):
-        dx = np.sqrt(np.sum(a1*a1,axis=-1))
-        dy = np.sqrt(np.sum(a2*a2,axis=-1))
-        threshold_d = wavelength/(1+np.sin(thetas))
-        temp = np.array([dx <threshold_d, dy<threshold_d])
-        return np.sum(temp,axis=0)==temp.shape[0]
-        
-checker =  gratinglobes().check()
-print "grating lobe condition: ", checker
 
 # In[]
 
-#result_direct = PGF_Direct(k0,a1,a2,200,200).pgf(k_dir,r)     
-result_poisson = PGF_Poisson(k0,a1,a2,20,20).pgf(k_dir,r)
-result_ewald = PGF_EWALD(k0,a1,a2,20,20).pgf(k_dir,r)
-#print np.absolute(result)
-import matplotlib.pylab as plt
-plt.figure()
-class Method(object):
-    def __init__(self,result,marker,line):
-        self.result=result
-        self.marker=marker
-        self.line=line
-    def angle(self,it):
-        plt.plot(zs,\
-                 np.angle(self.result)[it]/np.pi*180,\
-                 self.line,\
-                 label='angle %d %s'%(it,self.marker))
-    def absolute(self,it):
-        plt.plot(zs,\
-                 np.absolute(self.result)[it],\
-                 self.line,\
-                 label='abs %d %s'%(it,self.marker))
+class UnknownName(object):
+    def func(self):
+        x = np.linspace(0,0.5,3)
+        y = np.linspace(0,0.5,2)
+        z = np.linspace(0,1,4)
         
+        _hat_x = np.array([1,0,0])
+        _hat_y = np.array([0,1,0])
+        _hat_z = np.array([0,0,1])
         
-map(Method(result_poisson,'pois',"s").angle,xrange(k_dir.shape[0]))
-#map(Method(result_direct, 'dir',"-").angle,xrange(k_dir.shape[0]))
-map(Method(result_ewald, 'ewald',"+").angle,xrange(k_dir.shape[0]))
-plt.ylabel("angle (degree)")
-plt.xlabel("zs")
-plt.legend()
-plt.show()
-
-plt.figure()
-map(Method(result_poisson,'pois',"s").absolute,xrange(k_dir.shape[0]))
-#map(Method(result_direct,'dir',"-").absolute,xrange(k_dir.shape[0]))
-map(Method(result_ewald,'ewald',"+").absolute,xrange(k_dir.shape[0]))
-plt.xlabel("zs")
-plt.ylabel("log10(abs) ")
-plt.legend()
-plt.show()
-
-#
-
-plt.figure()
-#map(Method((result_direct-result_poisson)/result_direct,'dir_pois',"-s").absolute,xrange(k_dir.shape[0]))
-#map(Method((result_direct-result_ewald)/result_direct,'dir_ewald',"-d").absolute,xrange(k_dir.shape[0]))
-map(Method((result_poisson-result_ewald)/result_ewald,'pois_ewald',"-o").absolute,xrange(k_dir.shape[0]))
-plt.xlabel("zs")
-plt.ylabel("log10(abs) ")
-plt.legend()
-plt.show()        
+        r = x.reshape([-1,1,1,1])*_hat_x+y.reshape([1,-1,1,1])*_hat_y+z.reshape([1,1,-1,1])*_hat_z
+        r_shape_orign = r.shape
+        r_flat = r.reshape([-1,3])
         
-#print result_direct
-#print result_poisson
-#print np.absolute(result_poisson/result_direct)
+        R2 = np.sum(r_flat*r_flat,axis=-1)
+        print R2
+
+        wavelength = 10
+        k0 = np.pi*2/wavelength
+        
+        a1 = np.array([1,0,0])
+        a2 = np.array([0,1,0])       
+        
+        pgf_gen = PGF_EWALD(k0,a1,a2,20,20)
+        sig_value_replaced = pgf_gen.pgf(np.zeros([1,3]),np.array([[0,0,1.e-5],]))
+        print sig_value_replaced.shape
+        result_ewald = np.where(R2==0, np.zeros_like(R2)+sig_value_replaced[0,0], pgf_gen.pgf(np.zeros([1,3]),r_flat)) # 去掉奇异性
+        print result_ewald.shape
+        print result_ewald.reshape(*r_shape_orign[:-1])
+        
+        pass
+# In[]       
+#import scipy as np
+if __name__ == '__main__':
+    '''
+    zs = np.linspace(0.01,1,21)
+    r = np.array([[0,0,zz] for zz in zs]) 
+    thetas = np.linspace(0,np.pi*0.25,10) 
+    print "thetas: ", thetas
+    k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
+    k_dir = k_dir.transpose()
+    
+    wavelength = 10
+    k0 = np.pi*2/wavelength
+    
+    a1 = np.array([1,0,0])
+    a2 = np.array([0,1,0])
+    class gratinglobes(object): 
+        def check(self):
+            dx = np.sqrt(np.sum(a1*a1,axis=-1))
+            dy = np.sqrt(np.sum(a2*a2,axis=-1))
+            threshold_d = wavelength/(1+np.sin(thetas))
+            temp = np.array([dx <threshold_d, dy<threshold_d])
+            return np.sum(temp,axis=0)==temp.shape[0]
+            
+    checker =  gratinglobes().check()
+    print "grating lobe condition: ", checker
+    
+    # In[]
+    
+    result_direct = PGF_Direct(k0,a1,a2,100,100).pgf(k_dir,r)     
+    result_poisson = PGF_Poisson(k0,a1,a2,1,1).pgf(k_dir,r)
+    result_ewald = PGF_EWALD(k0,a1,a2,20,20).pgf(k_dir,r)
+    #print np.absolute(result)
+    import matplotlib.pylab as plt
+    plt.figure()
+    class Method(object):
+        def __init__(self,result,marker,line):
+            self.result=result
+            self.marker=marker
+            self.line=line
+        def angle(self,it):
+            plt.plot(zs,\
+                     np.angle(self.result)[it]/np.pi*180,\
+                     self.line,\
+                     label='angle %d %s'%(it,self.marker))
+        def absolute(self,it):
+            plt.plot(zs,\
+                     np.absolute(self.result)[it],\
+                     self.line,\
+                     label='abs %d %s'%(it,self.marker))
+            
+            
+    map(Method(result_poisson,'pois',"s").angle,xrange(k_dir.shape[0]))
+    map(Method(result_direct, 'dir',"-").angle,xrange(k_dir.shape[0]))
+    map(Method(result_ewald, 'ewald',"+").angle,xrange(k_dir.shape[0]))
+    plt.ylabel("angle (degree)")
+    plt.xlabel("zs")
+    #plt.legend()
+    plt.show()
+    
+    plt.figure()
+    map(Method(result_poisson,'pois',"s").absolute,xrange(k_dir.shape[0]))
+    map(Method(result_direct,'dir',"-").absolute,xrange(k_dir.shape[0]))
+    map(Method(result_ewald,'ewald',"+").absolute,xrange(k_dir.shape[0]))
+    plt.xlabel("zs")
+    plt.ylabel("log10(abs) ")
+    #plt.legend()
+    plt.show()
+    
+    #
+    
+    plt.figure()
+    #map(Method((result_direct-result_poisson)/result_direct,'dir_pois',"-s").absolute,xrange(k_dir.shape[0]))
+    map(Method((result_direct-result_ewald)/result_direct,'dir_ewald',"-d").absolute,xrange(k_dir.shape[0]))
+    #map(Method((result_poisson-result_ewald)/result_ewald,'pois_ewald',"-o").absolute,xrange(k_dir.shape[0]))
+    plt.xlabel("zs")
+    plt.ylabel("log10(abs) ")
+    #plt.legend()
+    plt.show()        
+            
+    #print result_direct
+    #print result_poisson
+    #print np.absolute(result_poisson/result_direct)
+    '''
+    UnknownName().func()
