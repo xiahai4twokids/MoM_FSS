@@ -180,13 +180,21 @@ class PGF_EWALD(object):
         return result
 
 # In[]
-
-class UnknownName(object):
-    def func(self):
-        x = np.linspace(0,0.5,3)
-        y = np.linspace(0,0.5,2)
-        z = np.linspace(0,1,4)
+from scipy.interpolate import RegularGridInterpolator
+class DGF_Interp_3D(object):
+    def __init__(self,x=np.linspace(0,0.5,3),y=np.linspace(0,0.5,2),z=np.linspace(0,1,4),\
+                 pgf_gen=PGF_EWALD(np.pi*0.2,np.array([1,0,0]),np.array([0,1,0]),20,20)):
+        self.x = x
+        self.y = y
+        self.z = z 
         
+        self.pgf_gen = pgf_gen
+        self.build()
+    
+    def build(self):
+        x = self.x
+        y = self.y
+        z = self.z
         _hat_x = np.array([1,0,0])
         _hat_y = np.array([0,1,0])
         _hat_z = np.array([0,0,1])
@@ -196,21 +204,21 @@ class UnknownName(object):
         r_flat = r.reshape([-1,3])
         
         R2 = np.sum(r_flat*r_flat,axis=-1)
-        print R2
+        
+        sig_value_replaced = self.pgf_gen.pgf(np.zeros([1,3]),np.array([[0,0,1.e-5],]))
+#        print sig_value_replaced.shape
+        self.data = np.where(R2==0, np.zeros_like(R2)+sig_value_replaced[0,0], self.pgf_gen.pgf(np.zeros([1,3]),r_flat)) # 去掉奇异性
+        self.data = self.data.reshape(*r_shape_orign[:-1])
+        
+        self.my_interpolating_function = RegularGridInterpolator((x, y, z), self.data)
 
-        wavelength = 10
-        k0 = np.pi*2/wavelength
-        
-        a1 = np.array([1,0,0])
-        a2 = np.array([0,1,0])       
-        
-        pgf_gen = PGF_EWALD(k0,a1,a2,20,20)
-        sig_value_replaced = pgf_gen.pgf(np.zeros([1,3]),np.array([[0,0,1.e-5],]))
-        print sig_value_replaced.shape
-        result_ewald = np.where(R2==0, np.zeros_like(R2)+sig_value_replaced[0,0], pgf_gen.pgf(np.zeros([1,3]),r_flat)) # 去掉奇异性
-        print result_ewald.shape
-        print result_ewald.reshape(*r_shape_orign[:-1])
-        
+    def interp(self,pts = np.array([[0.1,0.1,0.1], ])):
+        try:
+            result = self.my_interpolating_function(pts)
+            return result
+        except Exception as e:
+            print e
+            raise
         pass
 # In[]       
 #import scipy as np
@@ -239,7 +247,6 @@ if __name__ == '__main__':
     checker =  gratinglobes().check()
     print "grating lobe condition: ", checker
     
-    # In[]
     
     result_direct = PGF_Direct(k0,a1,a2,100,100).pgf(k_dir,r)     
     result_poisson = PGF_Poisson(k0,a1,a2,1,1).pgf(k_dir,r)
@@ -296,4 +303,4 @@ if __name__ == '__main__':
     #print result_poisson
     #print np.absolute(result_poisson/result_direct)
     '''
-    UnknownName().func()
+    print DGF_Interp_3D().interp()
