@@ -139,7 +139,6 @@ class PGF_EWALD(object):
         # 计算k_rho
         
         _hat_k_inc = k_dir*k0
-        _hat_k_inc = _hat_k_inc/np.sqrt(np.sum(_hat_k_inc*_hat_k_inc,axis=-1).reshape([-1,1,1,1,1]))
         k_rho = _hat_k_inc - np.sum(_hat_k_inc*_hat_K_3_unit,axis=-1).reshape([-1,1,1,1,1])*_hat_K_3_unit
         # 计算\hat K_mn
         
@@ -155,15 +154,11 @@ class PGF_EWALD(object):
         _gamma_z = np.sqrt(K_mn_2-k0**2)
         
         z = r[:,:,:,:,-1]  
-        
         E = np.sqrt(np.pi/_Omega)
-#        print _gamma_z
-        term_0_1 = np.where(_gamma_z*z<30, np.exp(_gamma_z*z)/_gamma_z, np.ones_like(_gamma_z))
+        term_0_1 = np.where(np.real(_gamma_z)*z<10, np.exp(_gamma_z*z)/_gamma_z, np.ones_like(_gamma_z))
         temp_pos_1 = term_0_1*spf.erfc(_gamma_z/2./E+z*E)
-#        temp_pos_1 = np.exp(_gamma_z*z)/_gamma_z*spf.erfc(_gamma_z/2./E+z*E)
-        term_0_2 = np.where(-_gamma_z*z<30,  np.exp(-_gamma_z*z)/_gamma_z, np.ones_like(_gamma_z))
+        term_0_2 = np.where(-np.real(_gamma_z)*z<10,  np.exp(-_gamma_z*z)/_gamma_z, np.ones_like(_gamma_z))
         temp_neg_1 = term_0_2*spf.erfc(_gamma_z/2./E-z*E)
-#        temp_neg_1 = np.exp(-_gamma_z*z)/_gamma_z*spf.erfc(_gamma_z/2./E-z*E)
         
         temp_1 = temp_pos_1+temp_neg_1
         temp2_1 = np.exp(\
@@ -183,15 +178,12 @@ class PGF_EWALD(object):
         
         result = _Psi_1/4/_Omega +_Psi_2/8/np.pi
         return result
-        # 计算
-         
-        pass
 # In[]       
 #import scipy as np
 zs = np.linspace(100,101,11)
 r = np.array([[0,0,zz] for zz in zs]) 
-#thetas = np.linspace(0,np.pi*0.1,2) 
-thetas = np.array([0,])
+thetas = np.linspace(0,np.pi*0.1,5) 
+#thetas = np.array([0.1,])
 print "thetas: ", thetas
 k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
 k_dir = k_dir.transpose()
@@ -214,9 +206,9 @@ print "grating lobe condition: ", checker
 
 # In[]
 
-result_direct = PGF_Direct(k0,a1,a2,100,100).pgf(k_dir,r)     
-result_poisson = PGF_Poisson(k0,a1,a2,2,2).pgf(k_dir,r)
-result_ewald = PGF_EWALD(k0,a1,a2,1,1).pgf(k_dir,r)
+#result_direct = PGF_Direct(k0,a1,a2,200,200).pgf(k_dir,r)     
+result_poisson = PGF_Poisson(k0,a1,a2,20,20).pgf(k_dir,r)
+result_ewald = PGF_EWALD(k0,a1,a2,20,20).pgf(k_dir,r)
 #print np.absolute(result)
 import matplotlib.pylab as plt
 plt.figure()
@@ -238,7 +230,7 @@ class Method(object):
         
         
 map(Method(result_poisson,'pois',"s").angle,xrange(k_dir.shape[0]))
-map(Method(result_direct, 'dir',"-").angle,xrange(k_dir.shape[0]))
+#map(Method(result_direct, 'dir',"-").angle,xrange(k_dir.shape[0]))
 map(Method(result_ewald, 'ewald',"+").angle,xrange(k_dir.shape[0]))
 plt.ylabel("angle (degree)")
 plt.xlabel("zs")
@@ -247,7 +239,7 @@ plt.show()
 
 plt.figure()
 map(Method(result_poisson,'pois',"s").absolute,xrange(k_dir.shape[0]))
-map(Method(result_direct,'dir',"-").absolute,xrange(k_dir.shape[0]))
+#map(Method(result_direct,'dir',"-").absolute,xrange(k_dir.shape[0]))
 map(Method(result_ewald,'ewald',"+").absolute,xrange(k_dir.shape[0]))
 plt.xlabel("zs")
 plt.ylabel("log10(abs) ")
@@ -257,8 +249,8 @@ plt.show()
 #
 
 plt.figure()
-map(Method((result_direct-result_poisson)/result_direct,'dir_pois',"-s").absolute,xrange(k_dir.shape[0]))
-map(Method((result_direct-result_ewald)/result_direct,'dir_ewald',"-d").absolute,xrange(k_dir.shape[0]))
+#map(Method((result_direct-result_poisson)/result_direct,'dir_pois',"-s").absolute,xrange(k_dir.shape[0]))
+#map(Method((result_direct-result_ewald)/result_direct,'dir_ewald',"-d").absolute,xrange(k_dir.shape[0]))
 map(Method((result_poisson-result_ewald)/result_ewald,'pois_ewald',"-o").absolute,xrange(k_dir.shape[0]))
 plt.xlabel("zs")
 plt.ylabel("log10(abs) ")
