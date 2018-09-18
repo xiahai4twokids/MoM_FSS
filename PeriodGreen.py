@@ -232,7 +232,8 @@ class DGF_Interp_3D(object):
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter('always')
-                    self.data = self.pgf_gen.pgf(k_dir_flat,r_flat)*np.sqrt(R2_row)
+                    R_row = np.sqrt(R2_row)
+                    self.data = self.pgf_gen.pgf(k_dir_flat,r_flat)*R_row*np.exp(1j*self.k*R_row)
                     self.data = self.data.reshape(*(k_dir_shape_orign[:-1]+r_shape_orign[:-1]))
             except Exception as e:
                 print e
@@ -258,21 +259,12 @@ class DGF_Interp_3D(object):
     
     def interp_dir_r(self, theta_phi, r):
         try:
-#            x = r[:,0]
-#            y = r[:,1]
-#            z = r[:,2]
-#            _hat_x = np.array([1,0,0])
-#            _hat_y = np.array([0,1,0])
-#            _hat_z = np.array([0,0,1])            
-#            r1 = x.reshape([-1,1,1,1])*_hat_x\
-#                +y.reshape([1,-1,1,1])*_hat_y\
-#                +z.reshape([1,1,-1,1])*_hat_z
             R = np.sqrt(np.sum(r*r,axis=-1))
             R = R.reshape([1,-1])
             
             pts_dir_r = np.array([np.hstack([xx,yy]) for xx in theta_phi for yy in r])
             result = self.interp(pts_dir_r)
-            return result.reshape([theta_phi.shape[0],r.shape[0]])/R
+            return result.reshape([theta_phi.shape[0],r.shape[0]])/R*np.exp(-1j*self.k*R)
         except Exception as e:
             print e
             raise
@@ -360,12 +352,12 @@ if __name__ == '__main__':
     '''
     test1()
     '''
-    thetas = np.linspace(0,np.pi*0.3,3)
+    thetas = np.linspace(0,np.pi*0.3,5)
 #    thetas = np.array([np.pi*0.3])
     print "thetas: ", thetas
-    zmin=0.01
-    zmax=1
-    zs = np.linspace(zmin,zmax,200)
+    zmin=1
+    zmax=5
+    zs = np.linspace(zmin,zmax,100)
     r = np.array([[0,0,zz] for zz in zs]) 
 
     k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
@@ -389,7 +381,7 @@ if __name__ == '__main__':
     print "grating lobe condition: ", checker
     pgf_gen_ewald = PGF_EWALD(k0,a1,a2,1,1)
     
-    pdf =  DGF_Interp_3D(x=np.linspace(0,0.9,1),y=np.linspace(0,0.9,1),z=np.linspace(zmin,zmax,50), \
+    pdf =  DGF_Interp_3D(x=np.linspace(0,0.9,1),y=np.linspace(0,0.9,1),z=np.linspace(zmin,zmax,10), \
                          pgf_gen=pgf_gen_ewald,\
                          k_dir_theta=thetas, k_dir_phi=np.array([0,]))
 
@@ -425,6 +417,14 @@ if __name__ == '__main__':
     plt.figure()
     map(Method(result_interp,'interp',"+").absolute,xrange(theta_phi.shape[0]))
     map(Method(result_ewald,'ewald',"-").absolute,xrange(theta_phi.shape[0]))
+    plt.xlabel("zs")
+    plt.ylabel("log10(abs) ")
+    plt.legend()
+    plt.show()
+
+    plt.figure()
+    map(Method((result_interp-result_ewald)/result_ewald,'diff',"-+").absolute,xrange(theta_phi.shape[0]))
+#    map(Method(result_ewald,'ewald',"-").absolute,xrange(theta_phi.shape[0]))
     plt.xlabel("zs")
     plt.ylabel("log10(abs) ")
     plt.legend()
