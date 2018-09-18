@@ -760,8 +760,9 @@ class Solver(object): # https://docs.scipy.org/doc/scipy-0.16.0/reference/sparse
             raise
     
 # In[]   
+import PeriodGreen 
 class PGreenFunc(object):
-    def __init__(self,k, k0,\
+    def __init__(self,k0, k,\
                  h=1,d=1,phi=0,\
                  nmax=1,mmax=1):
         self.k = k
@@ -772,7 +773,32 @@ class PGreenFunc(object):
         self.nmax = nmax
         self.mmax = mmax
         pass
-    def pgf(self, r1,r2):
+    def pgf(self, r1,r2): #下面的调用有问题
+        a1 = np.array([self.d*np.cos(self.phi),0,self.d*np.sin(self.phi)])
+        a2 = np.array([0,0,self.h])
+        wavelength=np.pi*2/self.k0
+        cos_phi = self.k[-1]
+        sin_the = cos_phi
+        print sin_the
+        class Gratinglobes(object): 
+            def check(self):
+                dx = np.sqrt(np.sum(a1*a1,axis=-1))
+                dy = np.sqrt(np.sum(a2*a2,axis=-1))
+                threshold_d = wavelength/(1+sin_the)
+                temp = np.array([dx <threshold_d, dy<threshold_d])
+                return np.sum(temp,axis=0)==temp.shape[0]
+                
+        checker = Gratinglobes().check()
+        print "grating lobe condition: ", checker
+        r = r1.reshape([-1,1,3])-r2.reshape([1,-1,3])
+        r = r.reshape([-1,3])
+        pgf_ewald = PeriodGreen.PGF_EWALD(self.k0,a1,a2,5,5)
+        
+#        dirs=
+        result = pgf_ewald.pgf(self.k, r)
+        return result.reshape(r1.shape[0],r2.shape[0])
+        '''
+        
         n = np.linspace(-self.nmax,self.nmax,2*self.nmax+1)
         m = np.linspace(-self.mmax,self.mmax,2*self.mmax+1)
                 
@@ -801,6 +827,7 @@ class PGreenFunc(object):
         return np.sum(\
                      np.sum(c,axis=-1),\
                            axis=-1)
+        '''
     def _ejkr_r(self, r1,r2):
         r1_copy = r1.reshape([-1,1,3])
         r2_copy = r2.reshape([1,-1,3])

@@ -289,6 +289,7 @@ class Period_FSS(object):
             
             def solve(self, ind_inc_i_j):
                 try:
+                    print ind_inc_i_j
                     incPar = IncidentPar()
                     incPar.k_direct = self.k_dirs[ind_inc_i_j[0],ind_inc_i_j[1]].reshape([-1,3])# 
                     incPar.e_direct = self.e_dirs[ind_inc_i_j[0],ind_inc_i_j[1]].reshape([-1,3])#
