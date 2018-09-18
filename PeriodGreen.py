@@ -4,7 +4,6 @@
 # In[] Poisson Transform
 import scipy as np
 import scipy.special as spf
-import pandas as pds
 import warnings
 
 class PGF_Direct(object):
@@ -183,7 +182,7 @@ class PGF_EWALD(object):
         return result
 
 # In[]
-from scipy.interpolate import RegularGridInterpolator,LinearNDInterpolator
+from scipy.interpolate import RegularGridInterpolator
 class DGF_Interp_3D(object):
     def __init__(self,x,y,z,\
                  pgf_gen,\
@@ -205,7 +204,6 @@ class DGF_Interp_3D(object):
             z = self.z
             theta = self.k_dir_theta
             phi = self.k_dir_phi
-            k = self.k
           
             _hat_x = np.array([1,0,0])
             _hat_y = np.array([0,1,0])
@@ -234,7 +232,7 @@ class DGF_Interp_3D(object):
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter('always')
-                    self.data = self.pgf_gen.pgf(k_dir_flat,r_flat)
+                    self.data = self.pgf_gen.pgf(k_dir_flat,r_flat)*np.sqrt(R2_row)
                     self.data = self.data.reshape(*(k_dir_shape_orign[:-1]+r_shape_orign[:-1]))
             except Exception as e:
                 print e
@@ -260,12 +258,23 @@ class DGF_Interp_3D(object):
     
     def interp_dir_r(self, theta_phi, r):
         try:
+#            x = r[:,0]
+#            y = r[:,1]
+#            z = r[:,2]
+#            _hat_x = np.array([1,0,0])
+#            _hat_y = np.array([0,1,0])
+#            _hat_z = np.array([0,0,1])            
+#            r1 = x.reshape([-1,1,1,1])*_hat_x\
+#                +y.reshape([1,-1,1,1])*_hat_y\
+#                +z.reshape([1,1,-1,1])*_hat_z
+            R = np.sqrt(np.sum(r*r,axis=-1))
+            R = R.reshape([1,-1])
+            
             pts_dir_r = np.array([np.hstack([xx,yy]) for xx in theta_phi for yy in r])
             result = self.interp(pts_dir_r)
-            return result.reshape([theta_phi.shape[0],r.shape[0]])
+            return result.reshape([theta_phi.shape[0],r.shape[0]])/R
         except Exception as e:
             print e
-            print pts_dir_r.shape
             raise
         pass
     
@@ -346,15 +355,16 @@ def test1():
     #print result_poisson
     #print np.absolute(result_poisson/result_direct)    
 #import scipy as np
+# In[]
 if __name__ == '__main__':
     '''
     test1()
     '''
-    thetas = np.linspace(0,np.pi*0.25,5)
+    thetas = np.linspace(0,np.pi*0.3,3)
 #    thetas = np.array([np.pi*0.3])
     print "thetas: ", thetas
-    zmin=1
-    zmax=11
+    zmin=0.01
+    zmax=1
     zs = np.linspace(zmin,zmax,200)
     r = np.array([[0,0,zz] for zz in zs]) 
 
