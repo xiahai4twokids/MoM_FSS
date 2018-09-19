@@ -798,11 +798,11 @@ class PGreenFunc(object):
             pass
         
         self.pgf_gen_ewald = PeriodGreen.PGF_EWALD(self.k0,a1,a2,2,2)
-        x_sample = np.linspace(-0.5,0.5-1e-6,10)
-        y_sample = np.linspace(-0.5,0.5-1e-6,10)
+        x_sample = np.linspace(-0.5,0.5-1e-6,20)
+        y_sample = np.linspace(-0.5,0.5-1e-6,20)
         z_sample = np.array([0,])
-        theta_sample = np.linspace(np.pi*0.1,np.pi*0.9,20)
-        phi_sample = np.linspace(0,np.pi*2,40)
+        theta_sample = np.linspace(np.pi*0.1,np.pi*0.9,60)
+        phi_sample = np.linspace(np.pi*0.1,np.pi*0.9,60)
         self.gf =  PeriodGreen.DGF_Interp_3D(x=x_sample,y=y_sample,z=z_sample, \
                                  pgf_gen=self.pgf_gen_ewald,\
                                  k_dir_theta=theta_sample, k_dir_phi=phi_sample)
@@ -818,6 +818,7 @@ class PGreenFunc(object):
             return result.reshape(r1.shape[0],r2.shape[0])
         except ValueError as ve:
             print ve
+            print theta_phi
             raise
 
     def _ejkr_r(self, r1,r2):
@@ -923,6 +924,8 @@ class FillingProcess_DGF_Free(object):
             pass
         except ValueError as ve:
             print ve
+            print filling.tempIncPar.theta
+            print filling.tempIncPar.phi
             raise
         except Exception as e:
             print e

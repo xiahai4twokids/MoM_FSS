@@ -311,6 +311,13 @@ class Period_FSS(object):
                     matrix_all_in_dgf = [matrixs,matrix_all_in[1],matrix_all_in[2]]
                     matrix = LinearOperator((matrix_all_in_dgf[1][0],matrix_all_in_dgf[1][1]),\
                                                     ImpMatrix2(matrix_all_in_dgf).matVec,ImpMatrix2(matrix_all_in_dgf).rmatVec)
+                except ValueError as ve:
+                    print ve
+                    print incPar.theta
+                    print incPar.phi
+                    print self.phis
+                    print ind_inc_i_j
+                    raise
                 except Exception as e:
                     print e
                     raise               
@@ -390,7 +397,7 @@ class Period_FSS(object):
                 h_dirs = v_dirs
                 e_dirs = np.cross(h_dirs,k_dirs)
     
-            solver = solving_kernel(thetas, phis, k_dirs,e_dirs)
+            solver = solving_kernel(thetas, phis.reshape([-1,1]), k_dirs,e_dirs)
 #            pool = Pool(rCSPar.numthread)
 #            for var in list(itertools.product(xrange(thetas.shape[0]),xrange(phis.shape[1]))):
 #                pool.apply_async(run_solve, (solver, var))
