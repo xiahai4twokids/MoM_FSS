@@ -187,9 +187,9 @@ class DGF_Interp_3D(object):
     def __init__(self,x,y,z,\
                  pgf_gen,\
                  k_dir_theta,k_dir_phi): # 插值的角度格子点
-        self.x = x
-        self.y = y
-        self.z = z 
+        self.x_sample = x
+        self.y_sample = y
+        self.z_sample = z 
         
         self.pgf_gen = pgf_gen
         self.k_dir_theta = k_dir_theta
@@ -199,15 +199,16 @@ class DGF_Interp_3D(object):
     
     def build(self):
         try:
-            x = self.x
-            y = self.y
-            z = self.z
+            x = self.x_sample
+            y = self.y_sample
+            z = self.z_sample
             theta = self.k_dir_theta
             phi = self.k_dir_phi
           
-            _hat_x = np.array([1,0,0])
-            _hat_y = np.array([0,1,0])
-            _hat_z = np.array([0,0,1])            
+            _hat_x = self.pgf_gen.a1
+            _hat_y = self.pgf_gen.a2
+            _hat_z = np.cross(_hat_x, _hat_y)
+            _hat_z = _hat_z/np.sqrt(np.sum(_hat_z*_hat_z))
             r = x.reshape([-1,1,1,1])*_hat_x\
                 +y.reshape([1,-1,1,1])*_hat_y\
                 +z.reshape([1,1,-1,1])*_hat_z
@@ -252,8 +253,14 @@ class DGF_Interp_3D(object):
             ptr = np.array([pts_dir_r[:,i] for i in xrange(len(self.data.shape)) if self.data.shape[i]>1])
             result = self.my_interpolating_function(ptr.transpose())
             return result
-        except Exception as e:
-            print e
+        except ValueError as ve:
+            print ve
+            print ptr
+            raise
+        except IndexError as ie:
+            print ie
+            print i
+            print pts_dir_r.shape
             raise
         pass    
     
@@ -262,11 +269,30 @@ class DGF_Interp_3D(object):
             R = np.sqrt(np.sum(r*r,axis=-1))
             R = R.reshape([1,-1])
             
-            pts_dir_r = np.array([np.hstack([xx,yy]) for xx in theta_phi for yy in r])
+            _hat_x = self.pgf_gen.a1.reshape([1,-1])
+            _hat_y = self.pgf_gen.a2.reshape([1,-1])
+            _hat_z = np.cross(_hat_x, _hat_y)
+            _hat_z = _hat_z/np.sqrt(np.sum(_hat_z*_hat_z))
+            
+            rx = np.sum(r*_hat_x,axis=-1)/np.sum(_hat_x*_hat_x)
+            ry = np.sum(r*_hat_y,axis=-1)/np.sum(_hat_y*_hat_y)
+            rz = np.sum(r*_hat_z,axis=-1)
+            
+            r_loc = np.vstack([rx,ry,rz])
+            r_loc = r_loc.transpose()
+            theta_phi_copy = theta_phi.reshape([-1,2])
+           
+            pts_dir_r = np.array([np.hstack([xx,yy]) for xx in theta_phi_copy for yy in r_loc])
             result = self.interp(pts_dir_r)
             return result.reshape([theta_phi.shape[0],r.shape[0]])/R*np.exp(-1j*self.k*R)
-        except Exception as e:
-            print e
+        except ValueError as ve:
+            print ve
+            raise
+        except IndexError as ie:
+            print ie
+            print pts_dir_r.shape
+            print r_loc.shape
+            print theta_phi.shape
             raise
         pass
     

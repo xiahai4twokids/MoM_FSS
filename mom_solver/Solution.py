@@ -262,6 +262,7 @@ class Period_FSS(object):
             matrix_all_in, filling_hander = fillingProcess.fillingProcess_dgf_free(\
                                                                        k,grids,trias,rwgs,domains,gridinDomain,triasinDomain\
                                                                        )
+            fillingProcess.sampleDGF(filling_hander)
         except Exception as e:
             print e
             raise
@@ -278,7 +279,9 @@ class Period_FSS(object):
         # 定义一个内部函数，用来做循环
         ############################
         class solving_kernel(object):
-            def __init__(self,k_dirs__,e_dirs__):
+            def __init__(self,thetas, phis, k_dirs__,e_dirs__):
+                self.thetas = thetas
+                self.phis = phis
                 self.k_dirs = k_dirs__
                 self.e_dirs = e_dirs__
                 details['rhd'] = dict()
@@ -291,6 +294,8 @@ class Period_FSS(object):
                 try:
                     print ind_inc_i_j
                     incPar = IncidentPar()
+                    incPar.theta = self.thetas[ind_inc_i_j[0]]
+                    incPar.phi = self.phis[ind_inc_i_j[1]]
                     incPar.k_direct = self.k_dirs[ind_inc_i_j[0],ind_inc_i_j[1]].reshape([-1,3])# 
                     incPar.e_direct = self.e_dirs[ind_inc_i_j[0],ind_inc_i_j[1]].reshape([-1,3])#
                     filling_hander.changeIncDir(incPar) 
@@ -385,7 +390,7 @@ class Period_FSS(object):
                 h_dirs = v_dirs
                 e_dirs = np.cross(h_dirs,k_dirs)
     
-            solver = solving_kernel(k_dirs,e_dirs)
+            solver = solving_kernel(thetas, phis, k_dirs,e_dirs)
 #            pool = Pool(rCSPar.numthread)
 #            for var in list(itertools.product(xrange(thetas.shape[0]),xrange(phis.shape[1]))):
 #                pool.apply_async(run_solve, (solver, var))

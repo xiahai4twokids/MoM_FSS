@@ -10,6 +10,7 @@ import numpy as np
 from _myutils import Cubature
 
 #from _rankRevealing import *
+import PeriodGreen
 
 class Filename(object):
     def __init__(self, filename = 'plane'):
@@ -49,13 +50,14 @@ class RCSPar_theta(object):
 class RCSPar_phi(object):
     def __init__(self):
         self.theta_0 = np.array([90,])*np.pi/180.
-        self.phi_0 = np.linspace(0,180,61)*np.pi/180.
+        self.phi_0 = np.linspace(20,160,61)*np.pi/180.
 #        self.phi_0 = np.array([90,])*np.pi/180.
         self.r = 100.
         
 class WorkingFreqPar(object):
     def __init__(self):
-        self.wavenumber=np.pi*2
+        wavelength=3
+        self.wavenumber=np.pi*2/wavelength
         
 class QuadRule(object):
     def __init__(self):
@@ -69,3 +71,5 @@ class IncidentPar(object):
     def __init__(self):
         self.k_direct = np.array([0,-1,0.]).reshape([1,3])
         self.e_direct = np.array([0.,0,1.]).reshape([1,3])
+        self.theta = 0
+        self.phi = 0

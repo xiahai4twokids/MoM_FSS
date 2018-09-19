@@ -16,6 +16,7 @@ from scipy.sparse import coo_matrix
 #from _myutils import 
 import pandas as pds
 from multiprocessing.dummy import Pool
+import warnings
 
 # In[] Some common parameters
 from Parameters import QuadRule, IncidentPar, SolverPar, CellPar
@@ -761,6 +762,7 @@ class Solver(object): # https://docs.scipy.org/doc/scipy-0.16.0/reference/sparse
     
 # In[]   
 import PeriodGreen 
+
 class PGreenFunc(object):
     def __init__(self,k0, k,\
                  h=1,d=1,phi=0,\
@@ -772,68 +774,58 @@ class PGreenFunc(object):
         self.phi = phi
         self.nmax = nmax
         self.mmax = mmax
+        self.build()
         pass
-    def pgf(self, r1,r2): #下面的调用有问题
-        a1 = np.array([self.d*np.cos(self.phi),0,self.d*np.sin(self.phi)])
-        a2 = np.array([0,0,self.h])
-        wavelength=np.pi*2/self.k0
-        cos_phi = self.k[-1]
-        sin_the = cos_phi
-        print sin_the
-        class Gratinglobes(object): 
-            def check(self):
-                dx = np.sqrt(np.sum(a1*a1,axis=-1))
-                dy = np.sqrt(np.sum(a2*a2,axis=-1))
-                threshold_d = wavelength/(1+sin_the)
-                temp = np.array([dx <threshold_d, dy<threshold_d])
-                return np.sum(temp,axis=0)==temp.shape[0]
-                
-        checker = Gratinglobes().check()
-        print "grating lobe condition: ", checker
+    def build(self):
+        try:
+            a1 = np.array([self.d*np.cos(self.phi),0,self.d*np.sin(self.phi)])
+            a2 = np.array([0,0,self.h])
+            wavelength=np.pi*2/self.k0
+            
+            class Gratinglobes(object): 
+                def check(self):
+                    dx = np.sqrt(np.sum(a1*a1,axis=-1))
+                    dy = np.sqrt(np.sum(a2*a2,axis=-1))
+                    threshold_d = wavelength
+                    temp = np.array([dx <threshold_d, dy<threshold_d])
+                    return np.sum(temp,axis=0)==temp.shape[0]
+                   
+            assert True == Gratinglobes().check()
+        except AssertionError:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                warnings.warn("Grating Loble!!", DeprecationWarning)
+            pass
+        
+        self.pgf_gen_ewald = PeriodGreen.PGF_EWALD(self.k0,a1,a2,2,2)
+        x_sample = np.linspace(-0.5,0.5-1e-6,10)
+        y_sample = np.linspace(-0.5,0.5-1e-6,10)
+        z_sample = np.array([0,])
+        theta_sample = np.linspace(np.pi*0.1,np.pi*0.9,20)
+        phi_sample = np.linspace(0,np.pi*2,40)
+        self.gf =  PeriodGreen.DGF_Interp_3D(x=x_sample,y=y_sample,z=z_sample, \
+                                 pgf_gen=self.pgf_gen_ewald,\
+                                 k_dir_theta=theta_sample, k_dir_phi=phi_sample)
+        pass
+    
+         
+    def pgf(self, theta_phi, r1,r2): 
         r = r1.reshape([-1,1,3])-r2.reshape([1,-1,3])
         r = r.reshape([-1,3])
-        pgf_ewald = PeriodGreen.PGF_EWALD(self.k0,a1,a2,5,5)
         
-#        dirs=
-        result = pgf_ewald.pgf(self.k, r)
-        return result.reshape(r1.shape[0],r2.shape[0])
-        '''
-        
-        n = np.linspace(-self.nmax,self.nmax,2*self.nmax+1)
-        m = np.linspace(-self.mmax,self.mmax,2*self.mmax+1)
-                
-        ms,ns = np.meshgrid(m,n)
-        rho_nm = [ns*self.d*np.cos(self.phi),\
-                  np.zeros_like(ms),\
-                  ms*self.h+ns*self.d*np.sin(self.phi)]
-        rho_nm = np.array(rho_nm)
-        rho_nm = rho_nm.transpose([1,2,0])
-        
-        r = r1.reshape([-1,1,1,1,3])
-        rp = r2.reshape([1,-1,1,1,3])
-        
-        r_rp_nm = r-rp-rho_nm
-        R_nm = np.sqrt(np.sum(r_rp_nm*r_rp_nm,axis=-1))
-        
-        k0 = self.k0.reshape([1,-1])
-        a = np.exp(-1.j*self.k*R_nm)/R_nm
-              
-        b = np.exp( -1.j*\
-                     np.sum(k0*rho_nm,axis=-1)\
-                  )
-        
-        c = a*b
-        
-        return np.sum(\
-                     np.sum(c,axis=-1),\
-                           axis=-1)
-        '''
+        try:
+            result = self.gf.interp_dir_r(theta_phi, r)
+            return result.reshape(r1.shape[0],r2.shape[0])
+        except ValueError as ve:
+            print ve
+            raise
+
     def _ejkr_r(self, r1,r2):
         r1_copy = r1.reshape([-1,1,3])
         r2_copy = r2.reshape([1,-1,3])
         r = r1_copy - r2_copy
         R = np.sqrt(np.sum(r*r,axis=-1))
-        return scipy.exp(-1.j*self.k*R)/R
+        return scipy.exp(-1.j*self.k0*R)/R
 
 # In[]        
 class FillingProcess_DGF_Free(object):
@@ -916,21 +908,30 @@ class FillingProcess_DGF_Free(object):
             print aes
             raise    
     def fillingDGF(self, impMatrix, filling):
+        dgf = self.dgf
         try:
             cellPar = CellPar()
-            dgf = PGreenFunc(filling.k, filling.getk_direct(), cellPar.h, cellPar.d, cellPar.phi, cellPar.nmax, cellPar.mmax)
             class temp0(object):
                 def iter(self,matrix):
                     r1Group, r2Group = matrix[0]
                     if True == cellPar.isPeriod:
-                        return dgf.pgf(r1Group, r2Group)
+                        return dgf.pgf(np.array([filling.tempIncPar.theta,filling.tempIncPar.phi]).transpose(),\
+                                       r1Group, r2Group)
                     else:
                         return dgf._ejkr_r(r1Group, r2Group)
             return map(temp0().iter, impMatrix)
             pass
-    	except Exception as e:
+        except ValueError as ve:
+            print ve
+            raise
+        except Exception as e:
             print e
             raise
+    def sampleDGF(self,filling):
+        cellPar = CellPar()
+        self.dgf = PGreenFunc(filling.k, filling.getk_direct(), cellPar.h, cellPar.d, cellPar.phi, cellPar.nmax, cellPar.mmax)
+        print "sampling ok"
+
 # In[]
 def getFarFiled(r_obs,  I_current, fillinghander, trias, rwgs):
     try:
