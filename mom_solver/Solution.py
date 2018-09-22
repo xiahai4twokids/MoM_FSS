@@ -19,7 +19,7 @@ from _domain_utils import autoDecomDomain, optDecomDomain,optDecomDomain_check
 #import pyximport; pyximport.install()
 from Components import FillingProcess_DGF_Free
 from Components import ImpMatrix2
-from Components import Solver,getFarFiled
+from Components import Solver,getFarFiled,getFarFiled_modes
 from Components import RWGFunc
 
 # In[] Some common parameters
@@ -344,6 +344,9 @@ class Period_FSS(object):
                     r_obs = -incPar.k_direct*r
                     r_obs = np.array(r_obs).reshape([1,1,-1])
                     field_obs = getFarFiled(r_obs, I_current, filling_hander, trias, rwgs) 
+                    getFarFiled_modes(r_obs, I_current, fillingProcess.dgf.dpfg, np.arange(-1,2),np.arange(-1,2),\
+                                filling_hander, trias, rwgs) 
+                    
                 except Exception as e:
                     print e
                     raise                            
@@ -423,16 +426,7 @@ class Period_FSS(object):
         return (ID,details)
         
 if __name__ == '__main__':
-    import os
-    import pickle
-    try:
-        os.mkdir('result')
-    except Exception as e:
-        print e
-        
-    ID_sim,details_sim = Mono_Static_RCS().simulator(filename=Filename('butterfly'),solverPar=SolverPar('aca'))
-    with open('result/%s.txt'%ID_sim,'w') as f:
-        pickle.dump(details_sim,f)
+    pass
 
     
 

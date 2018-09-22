@@ -21,6 +21,7 @@ import warnings
 # In[] Some common parameters
 from Parameters import QuadRule, IncidentPar, SolverPar, CellPar
 from _myutils import Cubature, Triangle
+import PeriodGreen 
 
 # In[] RWG Func
 
@@ -481,7 +482,137 @@ class FillingMatrix_dgf_free(object):
             raise
         except AssertionError as ae:
             print ae
-            raise       
+            raise     
+
+    def fillField_modes(self, r_obs, I_current, pdgf, m,n, triasinD2, b_12, rwgs): 
+#        a =
+        try:
+            
+            # 分区三角形的节点
+            d2 = self.d # NofTria _3 _3
+            
+            # 收集高斯点
+            num2 = b_12.numPoint()
+            r2Group_12 = self.r_quad["b_%d%d"%(b_12.degree(),b_12.rule())]\
+                                     [triasinD2]
+            r2Group_12 = r2Group_12.reshape([-1,3])            
+            w2Group_12 = self.w_quad["b_%d%d"%(b_12.degree(),b_12.rule())]\
+                                     [triasinD2]
+            w2Group_12 = w2Group_12.reshape([-1])
+            r2Group_12_find = [ii for ii,cell in enumerate(d2) \
+                               for ind in xrange(num2)]
+            r2Group_12_find = np.array(r2Group_12_find)# NofTria
+           
+            # 形成K矩阵
+#            temp_obs = r_obs.reshape([-1,3])
+#            assert temp_obs.shape[-1] == 3
+#            r_1 = np.zeros([3,temp_obs.shape[0],r2Group_12.shape[0]])
+#            r_2 = np.zeros([3,temp_obs.shape[0],r2Group_12.shape[0]])
+#            for id_comp in xrange(3):
+#                r_2[id_comp,:,:],r_1[id_comp,:,:] \
+#                    = np.meshgrid(r2Group_12[:,id_comp], temp_obs[:,id_comp])
+#                
+            r_vec = r_obs.reshape([-1,1,3])-r2Group_12.reshape([1,-1,3])
+            
+            # 形成G矩阵
+            hrwginD2_p = [rwg['+'] \
+                          for rwg in rwgs[1] if rwg['+'][3] in triasinD2]     # 找到所有hrwg
+            S_matrix_rowinD2_p = [ii \
+                                  for ii,rwg in enumerate(rwgs[1]) if rwg['+'][3] in triasinD2]
+            S_matrix_valuesinD2_p = [1.0 \
+                                     for rwg in rwgs[1] if rwg['+'][3] in triasinD2]
+            hrwginD2_n = [rwg['-'] \
+                          for rwg in rwgs[1] if rwg['-'][3] in triasinD2]             
+            S_matrix_rowinD2_n = [ii \
+                                  for ii,rwg in enumerate(rwgs[1]) if rwg['-'][3] in triasinD2]       
+            S_matrix_valuesinD2_n = [-1.0 \
+                                     for rwg in rwgs[1] if rwg['-'][3] in triasinD2]
+            
+            hrwginD2 = hrwginD2_p + hrwginD2_n
+            S_matrix_rowinD2 = S_matrix_rowinD2_p + S_matrix_rowinD2_n
+            S_matrix_colinD2 = np.arange(len(hrwginD2))
+            S_matrix_valuesinD2 = S_matrix_valuesinD2_p + S_matrix_valuesinD2_n
+       
+            S_matrixinD2 = coo_matrix((S_matrix_valuesinD2,(S_matrix_rowinD2, S_matrix_colinD2)),\
+                                      shape=[len(rwgs[1]),len(hrwginD2)])
+
+            Tria_Hrwg = np.array([ff[0] for ff in hrwginD2]) 
+            
+            FreePoint_Hrwg = np.array([ff[0][ff[1]] \
+                                       for ff in hrwginD2]) # Hrwg*3 -- 所有hrwg的自由节点
+            Weight_Hrwg = np.array([ff[2] \
+                                    for ff in hrwginD2]).reshape([1,-1,1]) # Hrwg*3 -- 所有hrwg的权重
+            
+            r2Group_Hrwg = np.zeros([3,FreePoint_Hrwg.shape[0],r2Group_12.shape[0]]) # 3*Hrwg*r -- 积分点
+            free_Hrwg = np.zeros([3,FreePoint_Hrwg.shape[0],r2Group_12.shape[0]])  # 3*Hrwg*r -- 所有hrwg的自由节点
+            for id_comp in xrange(3): # 将其进行meshgrid
+                r2Group_Hrwg[id_comp,:,:],free_Hrwg[id_comp,:,:] \
+                    = np.meshgrid(r2Group_12[:,id_comp], FreePoint_Hrwg[:,id_comp])
+            hrwgfunc = Weight_Hrwg*(r2Group_Hrwg - free_Hrwg) # 所有hrwg的取值
+
+            temp_check_r_tria = np.zeros([3,3,FreePoint_Hrwg.shape[0],r2Group_12.shape[0]]) # 检查hrwg的合理值，去掉一些支撑集外面的非零值
+            temp_check_hrwg_tria = np.zeros([3,3,FreePoint_Hrwg.shape[0],r2Group_12.shape[0]]) 
+            class temp0(object):
+                def iter(self,id):
+                    id_x,id_y = id
+                    temp_check_r_tria[id_x,id_y,:,:], temp_check_hrwg_tria[id_x,id_y,:,:] \
+                        = np.meshgrid(d2[r2Group_12_find][:,id_x,id_y], Tria_Hrwg[:,id_x,id_y])
+                    pass
+            map(temp0().iter,[(0,0),(0,1),(0,2),(1,0),(1,1),(1,2),(2,0),(2,1),(2,2)] )
+            temp_check = (temp_check_r_tria == temp_check_hrwg_tria) # 判断三角形是否一致
+            check_matrix = (np.sum(np.sum(temp_check,axis=0),axis=0) == 9) # 只有三个点，九个数值都一样才表明是一个三角形
+            temp2 = np.zeros(hrwgfunc.shape) # 过滤不合理的取值
+            for ind_comp in xrange(3):
+                temp2[ind_comp,:,:] = check_matrix*hrwgfunc[ind_comp,:,:]
+            G1 = temp2[0]*w2Group_12
+            G2 = temp2[1]*w2Group_12
+            G3 = temp2[2]*w2Group_12
+            
+            assert I_current.shape[1] == 1
+            X = S_matrixinD2.T.dot(I_current)
+            m1 = G1.T.dot(X)
+            m2 = G2.T.dot(X)
+            m3 = G3.T.dot(X)
+            moment = np.hstack((m1,m2,m3)) #是电流矩量
+            
+        except AssertionError as ae:
+            print ae
+            raise     
+        except Exception as e:
+            print e
+            raise
+        try: 
+            r_vec_flat = r_vec.reshape([-1,3])
+            rho_ = np.vstack([r_vec_flat[:,0],r_vec_flat[:,1],np.zeros_like(r_vec_flat[:,2])])
+            rho_ = rho_.transpose()
+            k_dir_ = self.tempIncPar.k_direct
+            
+            modes, impedance, gammaz = pdgf.modes( k_dir_ , rho_, m, n )
+            vg_mn = pdgf.specQuantity(r_vec_flat[:,2],impedance,gammaz)
+            
+            modes_interp_mn = np.array(modes)
+            modes_interp_mn = modes_interp_mn.transpose([0,1,2,4,5,6,3])
+            tt1 = vg_mn*modes_interp_mn
+            tt2 = tt1*moment.transpose()
+            A_mn = np.sum(tt2,axis=-1)
+            raise
+#            return A_mn
+            
+        except Exception as e:
+            print e
+            print "r_vec_flat.shape:",r_vec_flat.shape
+            print "rho_:",rho_.shape
+            print "vg_mn:",vg_mn.shape
+            print "modes_interp_mn:",modes_interp_mn.shape
+            print "moment:",moment.shape
+            print "tt1:",tt1.shape
+            print "tt2:",tt2.shape
+            print "A_mn:",A_mn.shape
+            raise
+            
+            
+
+
             
 # In[]
 class ImpMatrix(object):
@@ -761,7 +892,7 @@ class Solver(object): # https://docs.scipy.org/doc/scipy-0.16.0/reference/sparse
             raise
     
 # In[]   
-import PeriodGreen 
+
 
 class PGreenFunc(object):
     def __init__(self,k0, k,\
@@ -797,7 +928,8 @@ class PGreenFunc(object):
                 warnings.warn("Grating Loble!!", DeprecationWarning)
             pass
         
-        self.pgf_gen_ewald = PeriodGreen.PGF_EWALD(self.k0,a1,a2,2,2)
+        self.pgf_gen_ewald = PeriodGreen.PGF_EWALD(self.k0,a1,a2,1,1)
+        self.dpfg = PeriodGreen.DPGF(self.k0,a1,a2)
         x_sample = np.linspace(-0.5,0.5-1e-6,20)
         y_sample = np.linspace(-0.5,0.5-1e-6,20)
         z_sample = np.array([0,])
@@ -818,7 +950,6 @@ class PGreenFunc(object):
             return result.reshape(r1.shape[0],r2.shape[0])
         except ValueError as ve:
             print ve
-            print theta_phi
             raise
 
     def _ejkr_r(self, r1,r2):
@@ -944,6 +1075,22 @@ def getFarFiled(r_obs,  I_current, fillinghander, trias, rwgs):
 
         return fillinghander.fillField(r_obs, I_current, xrange(len(trias)), \
                                        b_101,rwgs)
+        pass
+    except AssertionError as ae:
+        print ae
+        raise
+    except Exception as e:
+        print e
+        raise
+
+def getFarFiled_modes(r_obs,  I_current, dpgf, m,n, fillinghander, trias, rwgs):
+    try:
+
+        quadRule = QuadRule()
+        b_101 = quadRule.b_101
+
+        return fillinghander.fillField_modes(r_obs, I_current, dpgf, m,n,  \
+                                             xrange(len(trias)), b_101, rwgs)
         pass
     except AssertionError as ae:
         print ae

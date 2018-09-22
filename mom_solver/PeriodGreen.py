@@ -6,6 +6,7 @@ import scipy as np
 import scipy.special as spf
 import warnings
 
+# 下面是Scala格林函数
 class PGF_Direct(object):
     def __init__(self,k0, a1, a2, nmax=200, mmax=200):
         self.a1 = a1
@@ -116,7 +117,7 @@ class PGF_EWALD(object):
         self.nmax = nmax
         self.k0 = k0
         pass
-    def pgf(self,k_dir_ ,r_):## 目前的程序还存在一些问题，发现计算结果和直接计算结果不一致。
+    def pgf(self,k_dir_ ,r_):
         a1 = self.a1
         a2 = self.a2
         nmax = self.nmax
@@ -255,6 +256,7 @@ class DGF_Interp_3D(object):
             return result
         except ValueError as ve:
             print ve
+            print ptr.shape
             print ptr
             raise
         except IndexError as ie:
@@ -296,7 +298,114 @@ class DGF_Interp_3D(object):
             raise
         pass
     
-
+# In[] 下面是并矢格林函数
+class DPGF(object):
+    def __init__(self,k0, a1, a2):
+        self.a1 = a1
+        self.a2 = a2
+        
+        self.k0 = k0
+    def modes(self,k_dir_ ,rho_, m, n):
+        try:
+            a1 = self.a1
+            a2 = self.a2
+            k0 = self.k0
+            mu0 = np.constants.mu_0
+            eps0 = np.constants.epsilon_0
+            v0 = np.constants.c
+            _circle_omega = k0*v0 
+        except Exception as e:
+            print e
+            raise
+        try:
+            # 计算\hat K_1和\hat K_2
+            a1Xa2 = np.cross(a1,a2)
+            _Omega = np.sqrt(np.sum((a1Xa2)**2,axis=-1))
+            
+            _hat_K_1 = np.cross(a2,np.cross(a1,a2))/_Omega**2*np.pi*2.
+            _hat_K_2 = np.cross(a1,np.cross(a2,a1))/_Omega**2*np.pi*2.
+            _hat_K_3_unit = np.cross(_hat_K_1, _hat_K_2)
+            _hat_K_3_unit = _hat_K_3_unit/(np.sqrt(np.sum(_hat_K_3_unit*_hat_K_3_unit)))
+            
+            k_dir = k_dir_
+            k_dir = k_dir.reshape(k_dir.shape[0],1,1,1,-1)
+            
+            rho = rho_
+            rho = rho.reshape([1,rho.shape[0], 1,1,-1])
+            _hat_z = np.array([0,0,1]).reshape([1,1,1,1,-1])
+                      
+            # 计算k_rho
+            _hat_k_inc = k_dir*k0
+            k_rho = _hat_k_inc - np.sum(_hat_k_inc*_hat_K_3_unit,axis=-1).reshape([-1,1,1,1,1])*_hat_K_3_unit
+            # 计算\hat K_mn       
+            _hat_K_mn = m.reshape([1,1,-1,1,1])*_hat_K_1.reshape([1,1,1,1,-1])\
+                +n.reshape([1,1,1,-1,1])*_hat_K_2.reshape([1,1,1,1,-1])\
+                -k_rho.reshape([k_rho.shape[0],1,1,1,-1]) 
+            # 计算\gamma_z
+            K_mn_2 = np.sum(_hat_K_mn*_hat_K_mn,axis=-1)
+            K_mn = np.sqrt(K_mn_2)
+            _gamma_z = np.sqrt(K_mn_2-k0**2)   
+    
+            _ksi_mn = np.exp(1.j*np.sum(_hat_K_mn*rho,axis=-1))/np.sqrt(_Omega) 
+            
+            _gamma_z = _gamma_z.reshape( *( _gamma_z.shape+(1,)  ) )
+            K_mn = K_mn.reshape( *(K_mn.shape+(1,)))
+            _ksi_mn = _ksi_mn.reshape( *(_ksi_mn.shape+(1,)) )
+        except Exception as e:
+            print e
+            raise
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                K_mn_no_zero = np.where(K_mn>0,K_mn,np.ones_like(K_mn))
+                _hat_K_mn_unit = _hat_K_mn/K_mn_no_zero
+        except Exception as e:
+            print e
+            raise
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                
+                Z_te_mn = 1.j*_circle_omega*mu0/_gamma_z
+                _hat_e_te_t_mn = 1.j*_ksi_mn*np.cross(_hat_z,_hat_K_mn_unit)
+                _hat_h_te_t_mn = -1.j*_ksi_mn*_hat_K_mn_unit
+                _hat_h_te_z_mn = K_mn/_gamma_z*_ksi_mn*_hat_z
+                
+                Z_tm_mn = _gamma_z/(1.j*_circle_omega*eps0)
+                _hat_e_tm_t_mn = _hat_h_te_t_mn
+                _hat_e_tm_z_mn = _hat_h_te_z_mn
+                _hat_h_tm_t_mn = -_hat_e_te_t_mn
+                
+                result_mod = [\
+                              np.array([_hat_e_te_t_mn, \
+                                        _hat_h_te_t_mn+_hat_h_te_z_mn]),\
+                              np.array([_hat_e_tm_t_mn+_hat_e_tm_z_mn, \
+                                        _hat_h_tm_t_mn])\
+                              ]
+#                result_imp = np.array([Z_te_mn.reshape([Z_te_mn.shape[0],Z_te_mn.shape[2],Z_te_mn.shape[3]]),\
+#                                       Z_tm_mn.reshape([Z_tm_mn.shape[0],Z_tm_mn.shape[2],Z_tm_mn.shape[3]])\
+#                                       ])
+#                result_gamma = _gamma_z.reshape([_gamma_z.shape[0],_gamma_z.shape[2],_gamma_z.shape[3]])
+                result_imp = np.array([Z_te_mn,\
+                                       Z_tm_mn\
+                                       ])
+                result_gamma = _gamma_z
+            return [result_mod, result_imp, result_gamma]
+        except Exception as e:
+            print e
+            raise
+    def specQuantity(self,z,imp,gamma):
+        try:
+            return np.exp(\
+                          -gamma.reshape( *(gamma.shape+(1,)) )*\
+                          np.absolute(z).reshape([-1])\
+                        )*imp.reshape(*(imp.shape+(1,)))/2.
+            pass
+        except Exception as e:
+            print e
+            raise
+    
+            
 # In[]  
 def test1():
     zs = np.linspace(0.01,1,21)
@@ -372,12 +481,7 @@ def test1():
     #print result_direct
     #print result_poisson
     #print np.absolute(result_poisson/result_direct)    
-#import scipy as np
-# In[]
-if __name__ == '__main__':
-    '''
-    test1()
-    '''
+def test2():
     thetas = np.linspace(0,np.pi*0.3,7)
 #    thetas = np.array([np.pi*0.3])
     print "thetas: ", thetas
@@ -467,3 +571,42 @@ if __name__ == '__main__':
     plt.ylabel("log10(abs) ")
     plt.legend()
     plt.show()
+#import scipy as np
+# In[]
+if __name__ == '__main__':
+    '''
+    test1()
+    '''
+    '''
+    test2()
+    '''
+    thetas = np.linspace(0,np.pi*0.3,7)
+    print "thetas: ", thetas
+    rho = np.array([[0.1,0.12,0],[0,0,0]]) 
+    print "rho:",rho
+
+    k_dir = np.vstack([np.sin(thetas),np.zeros_like(thetas),np.cos(thetas)])
+    k_dir = k_dir.transpose()
+
+    wavelength = 10
+    k0 = np.pi*2/wavelength
+    
+    a1 = np.array([1,0,0])
+    a2 = np.array([0,1,0])
+    class Gratinglobes(object): 
+        def check(self):
+            dx = np.sqrt(np.sum(a1*a1,axis=-1))
+            dy = np.sqrt(np.sum(a2*a2,axis=-1))
+            threshold_d = wavelength/(1+np.sin(thetas))
+            temp = np.array([dx <threshold_d, dy<threshold_d])
+            return np.sum(temp,axis=0)==temp.shape[0]    
+    checker = Gratinglobes().check()
+    print "grating lobe condition: ", checker
+    dpgf = DPGF(k0,a1,a2)
+    modes,imp,gammaz = dpgf.modes(k_dir,rho,np.arange(-2,3),np.arange(-2,3))
+    print "TE.modes.shape:", modes[0].shape
+    print "TM.modes.shape:", modes[1].shape
+    print "imp.shape:", imp.shape
+    print "gammaz.shape:", gammaz.shape
+    spec =  dpgf.specQuantity(np.array([0.1,0.2]),imp,gammaz)
+    print "spec.shape:", spec.shape
