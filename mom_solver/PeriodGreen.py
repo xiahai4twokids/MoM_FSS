@@ -5,6 +5,7 @@
 import scipy as np
 import scipy.special as spf
 import warnings
+import scipy.constants
 
 # 下面是Scala格林函数
 class PGF_Direct(object):

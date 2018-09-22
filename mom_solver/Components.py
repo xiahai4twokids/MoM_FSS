@@ -592,14 +592,17 @@ class FillingMatrix_dgf_free(object):
             
             modes_interp_mn = np.array(modes)
             modes_interp_mn = modes_interp_mn.transpose([0,1,2,4,5,6,3])
-            tt1 = vg_mn*modes_interp_mn
+            tt1 = vg_mn*np.conjugate(modes_interp_mn)
             tt2 = tt1*moment.transpose()
-            A_mn = np.sum(tt2,axis=-1)
+            tt3 = tt2.reshape(*(tt2.shape[:-1]+r_vec.shape[:-1]))
+            tt4 = np.sum(tt3,axis=-1)
+            A_mn = tt4.transpose([0,1,2,6,3,4,5])
             raise
 #            return A_mn
             
         except Exception as e:
             print e
+            print "r_vec.shape:",r_vec.shape
             print "r_vec_flat.shape:",r_vec_flat.shape
             print "rho_:",rho_.shape
             print "vg_mn:",vg_mn.shape
@@ -607,6 +610,8 @@ class FillingMatrix_dgf_free(object):
             print "moment:",moment.shape
             print "tt1:",tt1.shape
             print "tt2:",tt2.shape
+            print "tt3:",tt3.shape
+            print "tt4:",tt4.shape
             print "A_mn:",A_mn.shape
             raise
             
