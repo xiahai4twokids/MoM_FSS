@@ -343,9 +343,15 @@ class Period_FSS(object):
                     r = tempRCSPar.r
                     r_obs = -incPar.k_direct*r
                     r_obs = np.array(r_obs).reshape([1,1,-1])
-                    field_obs = getFarFiled(r_obs, I_current, filling_hander, trias, rwgs) 
-                    getFarFiled_modes(r_obs, I_current, fillingProcess.dgf.dpfg, np.arange(-1,2),np.arange(-1,2),\
+#                    field_obs = getFarFiled(r_obs, I_current, filling_hander, trias, rwgs) 
+                    Am=getFarFiled_modes(r_obs, I_current, fillingProcess.dgf.dpfg, np.arange(-1,2),np.arange(-1,2),\
                                 filling_hander, trias, rwgs) 
+                    Es = Am[0,1]
+                    field_obs = np.sum(np.sum(np.sum(Es,axis=-2),axis=-2),axis=0)
+#                    print field_obs
+#                    print field_obs.shape
+#                    print field_obs.shape
+#                    raise
                     
                 except Exception as e:
                     print e

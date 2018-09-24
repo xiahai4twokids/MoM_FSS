@@ -596,9 +596,10 @@ class FillingMatrix_dgf_free(object):
             tt2 = tt1*moment.transpose()
             tt3 = tt2.reshape(*(tt2.shape[:-1]+r_vec.shape[:-1]))
             tt4 = np.sum(tt3,axis=-1)
-            A_mn = tt4.transpose([0,1,2,6,3,4,5])
-            raise
-#            return A_mn
+            tt4 = tt4.transpose([6,0,1,2,3,4,5])
+            A_mn = tt4.reshape(*(r_obs.shape[:-1]+tt4.shape[1:]))
+            A_mn = A_mn.transpose([2,3,4,0,1,5,6,7])
+            return A_mn
             
         except Exception as e:
             print e
