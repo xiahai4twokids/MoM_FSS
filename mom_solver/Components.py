@@ -512,7 +512,7 @@ class FillingMatrix_dgf_free(object):
 #                r_2[id_comp,:,:],r_1[id_comp,:,:] \
 #                    = np.meshgrid(r2Group_12[:,id_comp], temp_obs[:,id_comp])
 #                
-            r_vec = r_obs.reshape([-1,1,3])-r2Group_12.reshape([1,-1,3])
+            
             
             # 形成G矩阵
             hrwginD2_p = [rwg['+'] \
@@ -582,38 +582,49 @@ class FillingMatrix_dgf_free(object):
             print e
             raise
         try: 
-            r_vec_flat = r_vec.reshape([-1,3])
-            rho_ = np.vstack([r_vec_flat[:,0],r_vec_flat[:,1],np.zeros_like(r_vec_flat[:,2])])
-            rho_ = rho_.transpose()
             k_dir_ = self.tempIncPar.k_direct
             
-            modes, impedance, gammaz = pdgf.modes( k_dir_ , rho_, m, n )
-            vg_mn = pdgf.specQuantity(r_vec_flat[:,2],impedance,gammaz)
+            r_vec_obs = r_obs.reshape([-1,1,3])
+            r_obs_flat = r_vec_obs.reshape([-1,3])
+            rho_obs = np.vstack([r_obs_flat[:,0],r_obs_flat[:,1],np.zeros_like(r_obs_flat[:,2])])
+            rho_obs = rho_obs.transpose()
+            modes_obs, impedance_obs, gammaz_obs = pdgf.modes( k_dir_ , rho_obs, m, n )
             
-            modes_interp_mn = np.array(modes)
-            modes_interp_mn = modes_interp_mn.transpose([0,1,2,4,5,6,3])
-            tt1 = vg_mn*np.conjugate(modes_interp_mn)
-            tt2 = tt1*moment.transpose()
-            tt3 = tt2.reshape(*(tt2.shape[:-1]+r_vec.shape[:-1]))
-            tt4 = np.sum(tt3,axis=-1)
-            tt4 = tt4.transpose([6,0,1,2,3,4,5])
-            A_mn = tt4.reshape(*(r_obs.shape[:-1]+tt4.shape[1:]))
-            A_mn = A_mn.transpose([2,3,4,0,1,5,6,7])
-            return A_mn
+            r_vec_src = r2Group_12.reshape([1,-1,3])
+            r_src_flat = r_vec_src.reshape([-1,3])
+            rho_src = np.vstack([r_src_flat[:,0],r_src_flat[:,1],np.zeros_like(r_src_flat[:,2])])
+            rho_src = rho_src.transpose()
+            modes_src, impedance_src, gammaz_src = pdgf.modes( k_dir_ , rho_src, m, n )
+    
+            vg_mn = pdgf.specQuantity((r_obs_flat-r_src_flat)[:,2],impedance_src,gammaz_src)
+            vg_mn = vg_mn[:,:,0,:,:,:,:]
+            
+            modes_interp_mn = np.array(modes_src)
+            modes_interp_mn_e = modes_interp_mn[:,0,:,:,:,:,:] # 提取电场分量
+            modes_interp_mn_e = modes_interp_mn_e.transpose([0,1,3,4,5,2]) #将积分点的指标后置
+            v_mod = vg_mn*np.conjugate(modes_interp_mn_e)
+            v_mod_mom = v_mod*moment.transpose()
+            v_mod_mom_reshape = v_mod_mom.reshape(*(v_mod_mom.shape[:-1]+r_vec_src.shape[:-1]))
+            v_mod_mom_reshape_sum_src = np.sum(v_mod_mom_reshape,axis=-1) # 不同积分点叠加
+            v_mod_mom_reshape_sum_src = np.sum(v_mod_mom_reshape_sum_src,axis=-2) #不同坐标（x，y，z）叠加
+
+            v_mod_mom_reshape_sum_src = v_mod_mom_reshape_sum_src\
+                                .reshape(*(v_mod_mom_reshape_sum_src.shape[:-1]+(1,)+v_mod_mom_reshape_sum_src.shape[-1:]))
+            modes_obs_interp_mn = np.array(modes_obs)
+            modes_obs_interp_mn_e = modes_obs_interp_mn[:,0,:,:,:,:,:] # 提取电场分量
+            modes_obs_interp_mn_e = modes_obs_interp_mn_e.transpose([0,1,3,4,5,2]) #将积分点的指标后置
+            
+            vg_mode_mode_J = v_mod_mom_reshape_sum_src*modes_obs_interp_mn_e            
+
+
+
+
+            vg_mode_mode_J = vg_mode_mode_J.transpose([0,1,5,2,3,4]) #将场点的指标前置到首位
+
+            return vg_mode_mode_J
             
         except Exception as e:
             print e
-            print "r_vec.shape:",r_vec.shape
-            print "r_vec_flat.shape:",r_vec_flat.shape
-            print "rho_:",rho_.shape
-            print "vg_mn:",vg_mn.shape
-            print "modes_interp_mn:",modes_interp_mn.shape
-            print "moment:",moment.shape
-            print "tt1:",tt1.shape
-            print "tt2:",tt2.shape
-            print "tt3:",tt3.shape
-            print "tt4:",tt4.shape
-            print "A_mn:",A_mn.shape
             raise
             
             

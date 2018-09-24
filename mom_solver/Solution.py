@@ -286,8 +286,7 @@ class Period_FSS(object):
                 self.e_dirs = e_dirs__
                 details['rhd'] = dict()
                 details['current'] = dict()
-                details['f_e']=np.zeros([self.k_dirs.shape[0],self.k_dirs.shape[1]])
-                details['f_h']=np.zeros([self.k_dirs.shape[0],self.k_dirs.shape[1]])
+                details['f']=np.zeros([self.k_dirs.shape[0],self.k_dirs.shape[1]])
                 pass
             
             def solve(self, ind_inc_i_j):
@@ -343,40 +342,24 @@ class Period_FSS(object):
                     r = tempRCSPar.r
                     r_obs = -incPar.k_direct*r
                     r_obs = np.array(r_obs).reshape([1,1,-1])
-#                    field_obs = getFarFiled(r_obs, I_current, filling_hander, trias, rwgs) 
-                    Am=getFarFiled_modes(r_obs, I_current, fillingProcess.dgf.dpfg, np.arange(-1,2),np.arange(-1,2),\
+                    fe_mn=getFarFiled_modes(r_obs, I_current, fillingProcess.dgf.dpfg, np.arange(-1,2),np.arange(-1,2),\
                                 filling_hander, trias, rwgs) 
-                    Es = Am[0,1]
-                    field_obs = np.sum(np.sum(np.sum(Es,axis=-2),axis=-2),axis=0)
-#                    print field_obs
-#                    print field_obs.shape
-#                    print field_obs.shape
-#                    raise
-                    
+                    field_obs = np.sum(np.sum(fe_mn,axis=-2),axis=-2)# 先后对m模、n模求和
+                    field_obs = np.sum(field_obs,axis=0) #对TE模式和TM模式进行求和
+                   
                 except Exception as e:
                     print e
-                    raise                            
+                    raise          
                 try:        
                     #1
-                    field_e = np.multiply(field_obs,incPar.e_direct)
-                    field_e = np.sum(field_e, axis=2)
-                    field_e = np.multiply(field_e,np.conj(field_e))
-                    aug = np.abs(field_e)*r**2*4*np.pi
+                    field_total = np.multiply(field_obs,np.conjugate(field_obs))
+                    field_total = np.sum(field_total[:,:,:-1], axis=2) # 计算水平分量
+                    aug = np.abs(field_total)
                 except Exception as e:
                     print e
                     raise              
-                details['f_e'][ind_inc_i_j[0],ind_inc_i_j[1]] = aug[0,0]  
-                       
-                try:        
-                    #1
-                    field_h = np.multiply(field_obs,np.cross(incPar.k_direct,incPar.e_direct))
-                    field_h = np.sum(field_h, axis=2)
-                    field_h = np.multiply(field_h,np.conj(field_h))
-                    aug = np.abs(field_h)*r**2*4*np.pi
-                except Exception as e:
-                    print e
-                    raise                 
-                details['f_h'][ind_inc_i_j[0],ind_inc_i_j[1]]= aug[0,0]
+                details['f'][ind_inc_i_j[0],ind_inc_i_j[1]] = aug[0,0]  
+                
                 pass
         ####################################### 
         print "solving equation"
