@@ -502,17 +502,6 @@ class FillingMatrix_dgf_free(object):
             r2Group_12_find = [ii for ii,cell in enumerate(d2) \
                                for ind in xrange(num2)]
             r2Group_12_find = np.array(r2Group_12_find)# NofTria
-           
-            # 形成K矩阵
-#            temp_obs = r_obs.reshape([-1,3])
-#            assert temp_obs.shape[-1] == 3
-#            r_1 = np.zeros([3,temp_obs.shape[0],r2Group_12.shape[0]])
-#            r_2 = np.zeros([3,temp_obs.shape[0],r2Group_12.shape[0]])
-#            for id_comp in xrange(3):
-#                r_2[id_comp,:,:],r_1[id_comp,:,:] \
-#                    = np.meshgrid(r2Group_12[:,id_comp], temp_obs[:,id_comp])
-#                
-            
             
             # 形成G矩阵
             hrwginD2_p = [rwg['+'] \
@@ -615,10 +604,6 @@ class FillingMatrix_dgf_free(object):
             modes_obs_interp_mn_e = modes_obs_interp_mn_e.transpose([0,1,3,4,5,2]) #将积分点的指标后置
             
             vg_mode_mode_J = v_mod_mom_reshape_sum_src*modes_obs_interp_mn_e            
-
-
-
-
             vg_mode_mode_J = vg_mode_mode_J.transpose([0,1,5,2,3,4]) #将场点的指标前置到首位
 
             return vg_mode_mode_J
@@ -626,11 +611,7 @@ class FillingMatrix_dgf_free(object):
         except Exception as e:
             print e
             raise
-            
-            
-
-
-            
+                       
 # In[]
 class ImpMatrix(object):
     def __init__(self, impMatrix):
@@ -922,36 +903,44 @@ class PGreenFunc(object):
         self.phi = phi
         self.nmax = nmax
         self.mmax = mmax
+        self.check()
         self.build()
         pass
-    def build(self):
+    
+    def check(self):
         try:
             a1 = np.array([self.d*np.cos(self.phi),0,self.d*np.sin(self.phi)])
             a2 = np.array([0,0,self.h])
             wavelength=np.pi*2/self.k0
-            
-            class Gratinglobes(object): 
-                def check(self):
-                    dx = np.sqrt(np.sum(a1*a1,axis=-1))
-                    dy = np.sqrt(np.sum(a2*a2,axis=-1))
-                    threshold_d = wavelength
-                    temp = np.array([dx <threshold_d, dy<threshold_d])
-                    return np.sum(temp,axis=0)==temp.shape[0]
-                   
-            assert True == Gratinglobes().check()
+            dx = np.sqrt(np.sum(a1*a1,axis=-1))
+            dy = np.sqrt(np.sum(a2*a2,axis=-1))
+            threshold_d = wavelength
+            temp = np.array([dx <threshold_d, dy<threshold_d])
+            result = np.sum(temp,axis=0)==temp.shape[0]                   
+            assert True == result
         except AssertionError:
             with warnings.catch_warnings():
                 warnings.simplefilter("error")
                 warnings.warn("Grating Loble!!", DeprecationWarning)
             pass
+         
+    def build(self):
+        try:
+            a1 = np.array([self.d*np.cos(self.phi),0,self.d*np.sin(self.phi)])
+            a2 = np.array([0,0,self.h])
+        except Exception as e:
+            print e
+            raise
         
         self.pgf_gen_ewald = PeriodGreen.PGF_EWALD(self.k0,a1,a2,1,1)
         self.dpfg = PeriodGreen.DPGF(self.k0,a1,a2)
-        x_sample = np.linspace(-0.5,0.5-1e-6,20)
-        y_sample = np.linspace(-0.5,0.5-1e-6,20)
+        
+        x_sample = np.linspace(-0.5,0.5-1e-6,100)
+        y_sample = np.linspace(-0.5,0.5-1e-6,100)
         z_sample = np.array([0,])
-        theta_sample = np.linspace(np.pi*0.1,np.pi*0.9,60)
-        phi_sample = np.linspace(np.pi*0.1,np.pi*0.9,60)
+        theta_sample = np.array([np.pi*0.5,])
+        phi_sample = np.linspace(np.pi*0.1,np.pi*0.9,180)
+        
         self.gf =  PeriodGreen.DGF_Interp_3D(x=x_sample,y=y_sample,z=z_sample, \
                                  pgf_gen=self.pgf_gen_ewald,\
                                  k_dir_theta=theta_sample, k_dir_phi=phi_sample)
@@ -1072,8 +1061,6 @@ class FillingProcess_DGF_Free(object):
             pass
         except ValueError as ve:
             print ve
-            print filling.tempIncPar.theta
-            print filling.tempIncPar.phi
             raise
         except Exception as e:
             print e
@@ -1081,15 +1068,13 @@ class FillingProcess_DGF_Free(object):
     def sampleDGF(self,filling):
         cellPar = CellPar()
         self.dgf = PGreenFunc(filling.k, filling.getk_direct(), cellPar.h, cellPar.d, cellPar.phi, cellPar.nmax, cellPar.mmax)
-        print "sampling ok"
+#        print "sampling ok"
 
 # In[]
 def getFarFiled(r_obs,  I_current, fillinghander, trias, rwgs):
     try:
-
         quadRule = QuadRule()
         b_101 = quadRule.b_101
-
         return fillinghander.fillField(r_obs, I_current, xrange(len(trias)), \
                                        b_101,rwgs)
         pass
@@ -1102,10 +1087,8 @@ def getFarFiled(r_obs,  I_current, fillinghander, trias, rwgs):
 
 def getFarFiled_modes(r_obs,  I_current, dpgf, m,n, fillinghander, trias, rwgs):
     try:
-
         quadRule = QuadRule()
         b_101 = quadRule.b_101
-
         return fillinghander.fillField_modes(r_obs, I_current, dpgf, m,n,  \
                                              xrange(len(trias)), b_101, rwgs)
         pass

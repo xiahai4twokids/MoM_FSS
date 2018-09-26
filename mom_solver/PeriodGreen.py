@@ -383,10 +383,6 @@ class DPGF(object):
                               np.array([_hat_e_tm_t_mn+_hat_e_tm_z_mn, \
                                         _hat_h_tm_t_mn])\
                               ]
-#                result_imp = np.array([Z_te_mn.reshape([Z_te_mn.shape[0],Z_te_mn.shape[2],Z_te_mn.shape[3]]),\
-#                                       Z_tm_mn.reshape([Z_tm_mn.shape[0],Z_tm_mn.shape[2],Z_tm_mn.shape[3]])\
-#                                       ])
-#                result_gamma = _gamma_z.reshape([_gamma_z.shape[0],_gamma_z.shape[2],_gamma_z.shape[3]])
                 result_imp = np.array([Z_te_mn,\
                                        Z_tm_mn\
                                        ])
